@@ -2,6 +2,7 @@
 import type { Command } from "commander";
 import type { ConfigFileSnapshot } from "../../config/types.js";
 import { setVerbose } from "../../globals.js";
+import { logDebug } from "../../logger.js";
 import type { LogLevel } from "../../logging/levels.js";
 import { resolvePluginInstallInvalidConfigPolicy } from "../../plugins/install-config.js";
 import { defaultRuntime } from "../../runtime.js";
@@ -106,7 +107,6 @@ async function runStateStoreGuard(commandPath: string[]): Promise<void> {
     outcome = await checkCliGatewayStateDir({ command: `openclaw ${commandPath.join(" ")}` });
   } catch (error) {
     const { formatErrorMessage } = await import("../../infra/errors.js");
-    const { logDebug } = await import("../../logger.js");
     logDebug(`state-store guard unavailable: ${formatErrorMessage(error)}`);
     return;
   }

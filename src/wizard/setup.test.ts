@@ -389,6 +389,8 @@ vi.mock("../commands/onboard-helpers.js", () => ({
 
 vi.mock("../plugins/status.js", () => ({
   buildPluginCompatibilitySnapshotNotices,
+}));
+vi.mock("../plugins/status-compatibility.js", () => ({
   formatPluginCompatibilityNotice,
 }));
 

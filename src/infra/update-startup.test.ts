@@ -79,7 +79,6 @@ describe("update-startup", () => {
   let runGatewayUpdateCheckOwner: (typeof import("./update-startup.js"))["runGatewayUpdateCheck"];
   let createGatewayUpdateCheck: (typeof import("./update-startup.js"))["createGatewayUpdateCheck"];
   let getUpdateAvailable: (typeof import("./update-status-state.js"))["getUpdateAvailable"];
-  let getUpdateEffectiveChannel: (typeof import("./update-startup.js"))["getUpdateEffectiveChannel"];
   let getUpdateSchedule: (typeof import("./update-status-state.js"))["getUpdateSchedule"];
   let refreshGatewayUpdateStatus: (typeof import("./update-status-schedule.js"))["refreshGatewayUpdateStatus"];
   let resetUpdateAvailableStateForTest: (typeof import("./update-startup.js"))["resetUpdateAvailableStateForTest"];
@@ -194,7 +193,6 @@ describe("update-startup", () => {
       ({
         runGatewayUpdateCheck: runGatewayUpdateCheckOwner,
         createGatewayUpdateCheck,
-        getUpdateEffectiveChannel,
         resetUpdateAvailableStateForTest,
       } = await import("./update-startup.js"));
       ({ refreshGatewayUpdateStatus } = await import("./update-status-schedule.js"));
@@ -257,10 +255,12 @@ describe("update-startup", () => {
     vi.mocked(resolveOpenClawPackageRoot).mockResolvedValue("/opt/openclaw");
     vi.mocked(checkUpdateStatus).mockRejectedValueOnce(new Error("probe failed"));
 
-    await expect(getUpdateEffectiveChannel()).rejects.toThrow("probe failed");
+    await expect(currentUpdateCheckLifecycle().initialize()).rejects.toThrow("probe failed");
 
     mockPackageInstallStatus();
-    await expect(getUpdateEffectiveChannel()).resolves.toBe("stable");
+    await expect(currentUpdateCheckLifecycle().initialize()).resolves.toMatchObject({
+      status: { installKind: "package" },
+    });
     expect(checkUpdateStatus).toHaveBeenCalledTimes(2);
   });
 
@@ -274,23 +274,30 @@ describe("update-startup", () => {
       return probe.promise;
     });
 
-    const first = getUpdateEffectiveChannel();
-    const second = getUpdateEffectiveChannel();
-    const channels = Promise.all([first, second]);
+    const first = currentUpdateCheckLifecycle().initialize();
+    const second = currentUpdateCheckLifecycle().initialize();
+    const initializations = Promise.all([first, second]);
     try {
       await withinTest(
-        awaitGateBeforeSettlement(entered.promise, channels, "install discovery did not start"),
+        awaitGateBeforeSettlement(
+          entered.promise,
+          initializations,
+          "install discovery did not start",
+        ),
         signal,
       );
       expect(checkUpdateStatus).toHaveBeenCalledTimes(1);
       probe.resolve(status);
 
-      await expect(channels).resolves.toEqual(["dev", "dev"]);
-      await expect(getUpdateEffectiveChannel()).resolves.toBe("dev");
+      await expect(initializations).resolves.toEqual([
+        expect.objectContaining({ status }),
+        expect.objectContaining({ status }),
+      ]);
+      await expect(currentUpdateCheckLifecycle().initialize()).resolves.toMatchObject({ status });
       expect(checkUpdateStatus).toHaveBeenCalledTimes(1);
     } finally {
       probe.resolve(status);
-      await Promise.allSettled([channels]);
+      await Promise.allSettled([initializations]);
     }
   });
 
@@ -349,22 +356,11 @@ describe("update-startup", () => {
     };
   }
 
-  function createBetaAutoUpdateConfig() {
+  function createUpdateConfig(channel: "beta" | "extended-stable", autoEnabled = false) {
     return {
       update: {
-        channel: "beta" as const,
-        auto: {
-          enabled: true,
-        },
-      },
-    };
-  }
-
-  function createExtendedStableConfig(params?: { autoEnabled?: boolean }) {
-    return {
-      update: {
-        channel: "extended-stable" as const,
-        ...(params?.autoEnabled ? { auto: { enabled: true } } : {}),
+        channel,
+        ...(autoEnabled ? { auto: { enabled: true } } : {}),
       },
     };
   }
@@ -372,7 +368,7 @@ describe("update-startup", () => {
   async function runExtendedStableUpdateCheck(
     params: Partial<Parameters<typeof runGatewayUpdateCheck>[0]> = {},
   ) {
-    await runGatewayUpdateCheck({ cfg: createExtendedStableConfig(), ...params });
+    await runGatewayUpdateCheck({ cfg: createUpdateConfig("extended-stable"), ...params });
   }
 
   async function seedExtendedStableAvailability(params?: {
@@ -535,14 +531,14 @@ describe("update-startup", () => {
     const log = { info: vi.fn() };
 
     await runExtendedStableUpdateCheck({
-      cfg: createExtendedStableConfig({ autoEnabled: true }),
+      cfg: createUpdateConfig("extended-stable", true),
       log,
       onUpdateAvailableChange,
       runAutoUpdate,
     });
     clock.setTime(Date.parse("2026-01-18T11:00:00Z"));
     await runExtendedStableUpdateCheck({
-      cfg: createExtendedStableConfig({ autoEnabled: true }),
+      cfg: createUpdateConfig("extended-stable", true),
       log,
       onUpdateAvailableChange,
       runAutoUpdate,
@@ -1055,7 +1051,9 @@ describe("update-startup", () => {
       await refreshing;
       await stopping;
       expect(getUpdateSchedule()).toBeNull();
-      await expect(getUpdateEffectiveChannel()).rejects.toMatchObject({ name: "AbortError" });
+      await expect(currentUpdateCheckLifecycle().initialize()).rejects.toMatchObject({
+        name: "AbortError",
+      });
       check.start();
       await clock.advanceBy(0);
       expect(checkUpdateStatus).toHaveBeenCalledTimes(2);
@@ -1285,7 +1283,7 @@ describe("update-startup", () => {
       entered.resolve();
       return applying.promise;
     });
-    let cfg: OpenClawConfig = createBetaAutoUpdateConfig();
+    let cfg: OpenClawConfig = createUpdateConfig("beta", true);
     const params = {
       getConfig: () => cfg,
       log: { info: vi.fn() },
@@ -1519,7 +1517,7 @@ describe("update-startup", () => {
       process.env.NODE_ENV = "production";
       const log = { info: vi.fn() };
       const stop = scheduleGatewayUpdateCheck({
-        cfg: createBetaAutoUpdateConfig(),
+        cfg: createUpdateConfig("beta", true),
         log,
         activeWorkInspectors: idleActiveWorkInspectors(),
       });
@@ -1581,7 +1579,7 @@ describe("update-startup", () => {
     );
     process.env.NODE_ENV = "production";
     const stop = scheduleGatewayUpdateCheck({
-      cfg: createBetaAutoUpdateConfig(),
+      cfg: createUpdateConfig("beta", true),
       activeWorkInspectors: idleActiveWorkInspectors(),
     });
     let applyingWake: ReturnType<typeof clock.advanceBy> = undefined;
@@ -1622,7 +1620,7 @@ describe("update-startup", () => {
     });
     process.env.NODE_ENV = "production";
     const stop = scheduleGatewayUpdateCheck({
-      cfg: createBetaAutoUpdateConfig(),
+      cfg: createUpdateConfig("beta", true),
       activeWorkInspectors: idleActiveWorkInspectors(),
     });
     let applyingWake: ReturnType<typeof clock.advanceBy> = undefined;
@@ -1740,7 +1738,7 @@ describe("update-startup", () => {
     const log = { info: vi.fn() };
 
     await runGatewayUpdateCheck({
-      cfg: { update: { ...createBetaAutoUpdateConfig().update, checkOnStart: false } },
+      cfg: { update: { ...createUpdateConfig("beta", true).update, checkOnStart: false } },
       runAutoUpdate,
       log,
     });
@@ -1764,7 +1762,7 @@ describe("update-startup", () => {
     const runAutoUpdate = createAutoUpdateSuccessMock();
 
     await runGatewayUpdateCheck({
-      cfg: createBetaAutoUpdateConfig(),
+      cfg: createUpdateConfig("beta", true),
       log,
       runAutoUpdate,
     });
@@ -1785,7 +1783,7 @@ describe("update-startup", () => {
     const runAutoUpdate = createAutoUpdateSuccessMock();
 
     await runGatewayUpdateCheck({
-      cfg: createBetaAutoUpdateConfig(),
+      cfg: createUpdateConfig("beta", true),
       log,
       runAutoUpdate,
     });
@@ -1802,7 +1800,7 @@ describe("update-startup", () => {
     process.env.OPENCLAW_PROFILE = "work";
     mockPackageInstallStatus();
     mockNpmChannelTag("beta", "2.0.0-beta.1");
-    await runAutoUpdateCheckWithDefaults({ cfg: createBetaAutoUpdateConfig() });
+    await runAutoUpdateCheckWithDefaults({ cfg: createUpdateConfig("beta", true) });
 
     expect(runCommandWithTimeout).not.toHaveBeenCalled();
     expect(startManagedServiceUpdateHandoffMock).not.toHaveBeenCalled();
@@ -1837,7 +1835,7 @@ describe("update-startup", () => {
     const terminalSentinels: Array<ReturnType<typeof readRestartSentinel>> = [];
 
     await runGatewayUpdateCheck({
-      cfg: createBetaAutoUpdateConfig(),
+      cfg: createUpdateConfig("beta", true),
       log,
       activeWorkInspectors: idleActiveWorkInspectors(),
       onUpdateScheduleChange: (schedule) => {
@@ -1887,7 +1885,7 @@ describe("update-startup", () => {
     });
 
     await runAutoUpdateCheckWithDefaults({
-      cfg: createBetaAutoUpdateConfig(),
+      cfg: createUpdateConfig("beta", true),
     });
 
     expect(scheduleGatewayRestartMock).not.toHaveBeenCalled();

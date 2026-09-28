@@ -52,7 +52,10 @@ import {
   loadSessionEntryByKey,
 } from "./subagent-announce-delivery.js";
 import { runDescendantWake } from "./subagent-announce-descendant-wake.js";
-import type { SubagentAnnounceDeliveryResult } from "./subagent-announce-dispatch.js";
+import type {
+  SubagentAnnounceDeliveryResult,
+  SubagentAnnounceFlowOutcome,
+} from "./subagent-announce-dispatch.js";
 import {
   resolveAnnounceOrigin,
   resolveSubagentCompletionOrigin,
@@ -80,10 +83,6 @@ const loadSubagentRegistryRuntime = createLazyPromise(
 );
 
 export { captureSubagentCompletionReply } from "./subagent-announce-output.js";
-
-export type SubagentAnnounceFlowOutcome =
-  | NonNullable<SubagentAnnounceDeliveryResult["disposition"]>
-  | "requester_turn_pending";
 
 function buildAnnounceReplyInstruction(params: {
   requesterIsSubagent: boolean;

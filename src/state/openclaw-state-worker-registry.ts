@@ -3,7 +3,7 @@ import type { AuthProfileWorkerOperations } from "../agents/auth-profiles/store.
 import type { NativeHookRelayStoreWorkerOperations } from "../agents/harness/native-hook-relay-store.worker-contract.js";
 import type { McpOAuthWorkerOperations } from "../agents/mcp-oauth-store.worker.js";
 import type { WorktreeWorkerOperations } from "../agents/worktrees/dispatch.worker.js";
-import type { AuditWorkerOperations } from "../audit/audit-event-writer.worker.js";
+import type { AuditWorkerOperations } from "../audit/audit-event-writer.types.js";
 import type { ChannelIngressWorkerOperations } from "../channels/message/ingress-queue.worker-contract.js";
 import type { ClawProvenanceWriteOperations } from "../claws/provenance-write.worker-contract.js";
 import type { DoctorWorkerOperations } from "../commands/doctor-state.worker.js";
@@ -29,7 +29,7 @@ import type { SessionDeliveryWorkerOperations } from "../infra/session-delivery-
 import type { DiagnosticWorkerOperations } from "../infra/sqlite-audit-record.worker-contract.js";
 import type { LegacyMcpOAuthWorkerOperations } from "../infra/state-migrations.mcp-oauth.worker.js";
 import type { TelemetryWorkerOperations } from "../infra/telemetry-store.worker.js";
-import type { ModelCatalogWorkerOperations } from "../model-catalog/remote-store.worker.js";
+import type { ModelCatalogWorkerOperations } from "../model-catalog/remote-store.types.js";
 import type { NodeWorkerJournalWorkerOperations } from "../node-host/node-worker-journal.worker-contract.js";
 import type { PluginBlobWorkerOperations } from "../plugin-state/plugin-blob-store.worker.js";
 import type { PluginRuntimeWorkerOperations } from "../plugins/state.worker-contract.js";
@@ -42,7 +42,7 @@ import type {
 import type { TranscriptWriteOperations } from "../transcripts/store-write.worker-contract.js";
 import type { OnboardingRecommendationWriteOperations } from "./onboarding-recommendations.kernel.js";
 import type { RepositoryWorkspaceWorkerOperations } from "./session-repository-workspaces.worker-contract.js";
-import type { UserProfileWorkerOperations } from "./user-profiles.worker.js";
+import type { UserProfileWorkerOperations } from "./user-profiles.worker-contract.js";
 import { createWorkerOperationRegistry } from "./worker-operation-registry.js";
 
 export type RegisteredStateWorkerOperations = ClawProvenanceWriteOperations &

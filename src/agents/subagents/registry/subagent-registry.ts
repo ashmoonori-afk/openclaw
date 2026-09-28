@@ -99,7 +99,7 @@ export async function prepareSubagentSessionCleanupRevocation(
   };
 }
 
-export function scheduleSubagentRegistrySweep(params?: { delayMs?: number }) {
+function scheduleSubagentRegistrySweep(params?: { delayMs?: number }) {
   subagentSweeper.schedule(params);
 }
 
@@ -727,7 +727,6 @@ export const settleRequesterAfterSessionSpawns = publicApi.settleRequesterAfterS
 export const markRequesterTurnYielded = publicApi.markRequesterTurnYielded;
 export const markSubagentMessageWait = publicApi.markSubagentMessageWait;
 export const listUnsettledRequesterChildren = publicApi.listUnsettledRequesterChildren;
-export type { UnsettledRequesterChild } from "./subagent-registry-requester-yield.js";
 
 export const adoptSubagentRunForRequesterTurn =
   subagentLifecycleController.adoptSubagentRunForRequesterTurn;
@@ -739,6 +738,7 @@ if (process.env.VITEST || process.env.NODE_ENV === "test") {
     finalizeInterruptedSubagentRun: completionRuntime.finalizeInterruptedSubagentRun,
     releaseSubagentRun: subagentRunManager.releaseSubagentRun,
     resetSubagentRegistryForTests,
+    scheduleSubagentRegistrySweep,
     testing,
   };
 }
