@@ -186,6 +186,7 @@ test("visibly settles a message-tool-only Telegram turn after a provider failure
           expect(providerBodies[1]?.model).toBe(providerBodies[0]?.model);
           expect(JSON.stringify(providerBodies[1]?.input)).toContain(REQUEST_TEXT);
           expect(providerBodies[1]?.input).not.toEqual(providerBodies[0]?.input);
+          expect(gatewayOwner.logs()).toContain(RAW_ERROR_CANARY);
           expect(telegramSends.map((send) => send.text).join("\n")).not.toContain(RAW_ERROR_CANARY);
         } finally {
           await stopQaGatewayFixture(gatewayOwner);
