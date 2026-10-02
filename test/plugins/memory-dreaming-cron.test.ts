@@ -1,4 +1,4 @@
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import memoryCore from "../../extensions/memory-core/index.js";
 import type { OpenClawConfig } from "../../src/config/types.openclaw.js";
 import { resolveCronJobEffectiveAgentId } from "../../src/cron/agent-id.js";
@@ -13,15 +13,25 @@ import { createTestGatewayScheduler } from "../../src/test-utils/gateway-schedul
 const { makeStorePath } = createCronStoreHarness({ prefix: "memory-dreaming-cron-" });
 const services = new Set<PluginServicesHandle>();
 const schedulers = new Set<CronService>();
+let scheduler: ReturnType<typeof createTestGatewayScheduler>;
+
+beforeEach(() => {
+  scheduler = createTestGatewayScheduler();
+});
 
 afterEach(async () => {
-  await Promise.all([...services].map((service) => service.stop()));
-  services.clear();
-  for (const cron of schedulers) {
-    cron.stop();
+  scheduler.beginClose();
+  try {
+    await Promise.all([...services].map((service) => service.stop()));
+  } finally {
+    services.clear();
+    for (const cron of schedulers) {
+      cron.stop();
+    }
+    schedulers.clear();
+    await scheduler.stop();
+    vi.useRealTimers();
   }
-  schedulers.clear();
-  vi.useRealTimers();
 });
 
 function registerDreaming(config: OpenClawConfig, logger: ReturnType<typeof createNoopLogger>) {
@@ -48,7 +58,7 @@ function registerDreaming(config: OpenClawConfig, logger: ReturnType<typeof crea
 async function createScheduler(cronEnabled: boolean, owner?: string) {
   const { storePath } = await makeStorePath();
   const cron = new CronService({
-    scheduler: createTestGatewayScheduler(),
+    scheduler,
     nowMs: () => Date.now(),
     storePath,
     cronEnabled,
@@ -74,7 +84,12 @@ it.each([false, true])(
     const add = vi.spyOn(cron, "add");
     const logger = createNoopLogger();
     const registry = registerDreaming(config, logger);
-    const handle = await startPluginServices({ registry, config, getCronService: () => cron });
+    const handle = await startPluginServices({
+      scheduler,
+      registry,
+      config,
+      getCronService: () => cron,
+    });
     services.add(handle);
 
     expect(logger.error).not.toHaveBeenCalled();
@@ -97,6 +112,7 @@ it("creates one owned declaration after scheduling resumes and across service re
   let cron = await createScheduler(false, "qa");
   const logger = createNoopLogger();
   const handle = await startPluginServices({
+    scheduler,
     registry: registerDreaming(config, logger),
     config,
     getCronService: () => cron,
@@ -155,6 +171,7 @@ it.each([true, false])(
     };
     const logger = createNoopLogger();
     const handle = await startPluginServices({
+      scheduler,
       registry: registerDreaming(config, logger),
       config,
       getCronService: () => cron,
