@@ -48,7 +48,6 @@ export type SessionStoreTargetReadResult =
 export type SessionStoreTargetInventoryRequest = {
   selection?: "configured";
   config: OpenClawConfig;
-  legacyDefaultAgentId?: string;
   agentIds: string[];
   env: NodeJS.ProcessEnv;
   paths: CapturedSessionStorePaths;
