@@ -1023,6 +1023,7 @@ src/logging/state.ts
 src/logging/structured-authorization-code.ts
 src/logging/subsystem.ts
 src/logging/timestamps.ts
+src/llm/types.ts
 src/media/media-facts.ts
 src/media/staged-inputs.ts
 src/memory-host-sdk/host/config-utils.ts
