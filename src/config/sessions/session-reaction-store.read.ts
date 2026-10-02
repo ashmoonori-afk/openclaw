@@ -1,9 +1,9 @@
 import { executeSqliteQuerySync, getNodeSqliteKysely } from "../../infra/kysely-sync.js";
+import type { OpenClawAgentDatabase } from "../../state/openclaw-agent-db-contract.js";
 import type {
   DB as OpenClawAgentKyselyDatabase,
   SessionReactions,
 } from "../../state/openclaw-agent-db.generated.js";
-import type { OpenClawAgentDatabase } from "../../state/openclaw-agent-db.js";
 import type { StoredMessageReactionSummary } from "./session-reaction-store.types.js";
 
 export function reactionDb(database: Pick<OpenClawAgentDatabase, "db">) {
